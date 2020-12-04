@@ -1,0 +1,124 @@
+on: [push]
+
+jobs:
+
+  vpe-mm-unity-urp-win-x64:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Prepare
+        id: prepare
+        run: |
+           SHA8=${GITHUB_SHA::8}
+           NAME="vpe-mm-unity-urp-win-x64-${SHA8}"
+           echo ::set-output name=NAME::${NAME}
+      - name: Checkout project
+        uses: actions/checkout@v2
+        with:
+           path: vpe-mm-unity-urp
+      - name: Download assets
+        uses: satackey/action-google-drive@v1
+        with:
+           skicka-tokencache-json: ${{ secrets.SKICKA_TOKENCACHE_JSON }}
+           download-from: /VisualPinball.Engine/vpe-mm-unity-urp/Assets.zip
+           download-to: ./
+           google-client-id: ${{ secrets.GOOGLE_CLIENT_ID }}
+           google-client-secret: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+      - name: Uncompress assets
+        run: |
+           unzip Assets.zip -d ./vpe-mm-unity-urp/Assets
+      - name: Checkout VisualPinball.Engine
+        uses: actions/checkout@v2
+        with:
+           repository: freezy/VisualPinball.Engine
+           ref: feature/wpc_emu_latest_rp
+           path: VisualPinball.Engine
+      - name: Checkout VisualPinball.Unity.Urp
+        uses: actions/checkout@v2
+        with:
+           repository: freezy/VisualPinball.Unity.Urp
+           path: VisualPinball.Unity.Urp
+      - name: Setup Cache
+        uses: actions/cache@v2
+        with:
+           path: vpe-mm-unity-urp/Library
+           key: Library-win-x64
+      - name: Unity - Builder Windows x64
+        uses: webbertakken/unity-builder@v2.0-aplha-5
+        env:
+           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+        with:
+           projectPath: vpe-mm-unity-urp
+           unityVersion: 2020.2.0b14
+           targetPlatform: StandaloneWindows64
+           customImage: jsm174/unityci:2020.2.0b14-windows-mono
+           buildName: vpe-mm-unity-urp
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v1
+        with:
+           name: ${{ steps.prepare.outputs.NAME }}
+           path: build/StandaloneWindows64
+
+  vpe-mm-unity-urp-mac:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Prepare
+        id: prepare
+        run: |
+           SHA8=${GITHUB_SHA::8}
+           NAME="vpe-mm-unity-urp-mac-${SHA8}"
+           DMG="${NAME}.dmg"
+           echo ::set-output name=NAME::${NAME}
+           echo ::set-output name=DMG::${DMG}
+      - name: Checkout project
+        uses: actions/checkout@v2
+        with:
+           path: vpe-mm-unity-urp
+      - name: Download assets 
+        uses: satackey/action-google-drive@v1
+        with:
+           skicka-tokencache-json: ${{ secrets.SKICKA_TOKENCACHE_JSON }}
+           download-from: /VisualPinball.Engine/vpe-mm-unity-urp/Assets.zip
+           download-to: ./
+           google-client-id: ${{ secrets.GOOGLE_CLIENT_ID }}
+           google-client-secret: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+      - name: Uncompress assets
+        run: |
+           unzip Assets.zip -d ./vpe-mm-unity-urp/Assets
+      - name: Checkout VisualPinball.Engine
+        uses: actions/checkout@v2
+        with:
+           repository: freezy/VisualPinball.Engine
+           ref: feature/wpc_emu_latest_rp
+           path: VisualPinball.Engine
+      - name: Checkout VisualPinball.Unity.Urp
+        uses: actions/checkout@v2
+        with:
+           repository: freezy/VisualPinball.Unity.Urp
+           path: VisualPinball.Unity.Urp
+      - name: Setup Cache
+        uses: actions/cache@v2
+        with:
+           path: vpe-mm-unity-urp/Library
+           key: Library-mac
+      - name: Unity - Builder Mac
+        uses: webbertakken/unity-builder@v2.0-aplha-5
+        env:
+           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+        with:
+           projectPath: vpe-mm-unity-urp
+           unityVersion: 2020.2.0b14
+           targetPlatform: StandaloneOSX
+           customImage: jsm174/unityci:2020.2.0b14-mac-mono
+           buildName: vpe-mm-unity-urp
+      - name: Make DMG
+        run: |
+           sudo mv ./build/StandaloneOSX/vpe-mm-unity-urp/Contents/Plugins ./build/StandaloneOSX/vpe-mm-unity-urp.app/Contents
+           sudo rm -rf ./build/StandaloneOSX/vpe-mm-unity-urp
+           sudo apt-get install genisoimage
+           sudo genisoimage -V ${{ steps.prepare.outputs.NAME }} -D -R -apple -no-pad -o ./build/${{ steps.prepare.outputs.DMG }} ./build/StandaloneOSX
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v1
+        with:
+           name: ${{ steps.prepare.outputs.NAME }}
+           path: build/${{ steps.prepare.outputs.DMG }}
+
